@@ -26,13 +26,16 @@ function LoginPage() {
     setLoading(true);
 
     if (isSignUp) {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: window.location.origin },
       });
       if (signUpError) {
         setError(signUpError.message);
+      } else if (signUpData.session) {
+        // Email confirmation is off: user is already logged in
+        navigate({ to: "/" });
       } else {
         setMessage("Check your email for a confirmation link.");
       }

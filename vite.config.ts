@@ -6,4 +6,18 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-export default defineConfig();
+// Build a deployable server bundle with Nitro.
+// On Vercel the "vercel" preset is used automatically; otherwise set NITRO_PRESET
+// (defaults to Cloudflare Workers).
+export default defineConfig({
+  nitro: process.env.VERCEL
+    ? {
+        preset: "vercel",
+        output: {
+          dir: ".vercel/output",
+          serverDir: ".vercel/output/functions/__server.func",
+          publicDir: ".vercel/output/static",
+        },
+      }
+    : true,
+});

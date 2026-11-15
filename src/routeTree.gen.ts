@@ -9,23 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as WorkoutTemplateIdRouteImport } from './routes/workout.$templateId'
-import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
-import { Route as AppStopwatchRouteImport } from './routes/_app/stopwatch'
-import { Route as AppStatsRouteImport } from './routes/_app/stats'
-import { Route as AppExercisesRouteImport } from './routes/_app/exercises'
 import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
+import { Route as AppExercisesRouteImport } from './routes/_app/exercises'
+import { Route as AppStatsRouteImport } from './routes/_app/stats'
+import { Route as AppStopwatchRouteImport } from './routes/_app/stopwatch'
+import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
+import { Route as WorkoutTemplateIdRouteImport } from './routes/workout.$templateId'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -33,24 +33,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const WorkoutTemplateIdRoute = WorkoutTemplateIdRouteImport.update({
-  id: '/workout/$templateId',
-  path: '/workout/$templateId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppTemplatesRoute = AppTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppStopwatchRoute = AppStopwatchRouteImport.update({
-  id: '/stopwatch',
-  path: '/stopwatch',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppStatsRoute = AppStatsRouteImport.update({
-  id: '/stats',
-  path: '/stats',
+const AppCalendarRoute = AppCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => AppRoute,
 } as any)
 const AppExercisesRoute = AppExercisesRouteImport.update({
@@ -58,10 +43,25 @@ const AppExercisesRoute = AppExercisesRouteImport.update({
   path: '/exercises',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCalendarRoute = AppCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
+const AppStatsRoute = AppStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
   getParentRoute: () => AppRoute,
+} as any)
+const AppStopwatchRoute = AppStopwatchRouteImport.update({
+  id: '/stopwatch',
+  path: '/stopwatch',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppRoute,
+} as any)
+const WorkoutTemplateIdRoute = WorkoutTemplateIdRouteImport.update({
+  id: '/workout/$templateId',
+  path: '/workout/$templateId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -138,18 +138,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_app': {
       id: '/_app'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -159,32 +159,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/workout/$templateId': {
-      id: '/workout/$templateId'
-      path: '/workout/$templateId'
-      fullPath: '/workout/$templateId'
-      preLoaderRoute: typeof WorkoutTemplateIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/templates': {
-      id: '/_app/templates'
-      path: '/templates'
-      fullPath: '/templates'
-      preLoaderRoute: typeof AppTemplatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/stopwatch': {
-      id: '/_app/stopwatch'
-      path: '/stopwatch'
-      fullPath: '/stopwatch'
-      preLoaderRoute: typeof AppStopwatchRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/stats': {
-      id: '/_app/stats'
-      path: '/stats'
-      fullPath: '/stats'
-      preLoaderRoute: typeof AppStatsRouteImport
+    '/_app/calendar': {
+      id: '/_app/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof AppCalendarRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/exercises': {
@@ -194,12 +173,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExercisesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/calendar': {
-      id: '/_app/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof AppCalendarRouteImport
+    '/_app/stats': {
+      id: '/_app/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof AppStatsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/stopwatch': {
+      id: '/_app/stopwatch'
+      path: '/stopwatch'
+      fullPath: '/stopwatch'
+      preLoaderRoute: typeof AppStopwatchRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates': {
+      id: '/_app/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/workout/$templateId': {
+      id: '/workout/$templateId'
+      path: '/workout/$templateId'
+      fullPath: '/workout/$templateId'
+      preLoaderRoute: typeof WorkoutTemplateIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
