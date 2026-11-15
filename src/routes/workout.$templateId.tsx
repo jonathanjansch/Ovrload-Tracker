@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Check, RefreshCw, Timer, Plus } from "lucide-react";
 import { RestTimer } from "@/components/RestTimer";
+import { NumberField } from "@/components/NumberField";
 import { ExerciseSwapDialog } from "@/components/ExerciseSwapDialog";
 import { toast } from "sonner";
 
@@ -359,7 +360,7 @@ function WorkoutPage() {
 
   const handleDiscardConflictAndStart = async () => {
     if (conflictSession) {
-      const { error } = await supabase.from("workout_sessions").update({ status: "cancelled" }).eq("id", conflictSession.id);
+      const { error } = await supabase.from("workout_sessions").delete().eq("id", conflictSession.id);
       if (error) { toast.error("Failed to discard previous workout"); return; }
     }
     setShowConflictDialog(false);
@@ -496,7 +497,7 @@ function WorkoutPage() {
 
   const cancelWorkout = async () => {
     if (!sessionIdRef.current) return;
-    const { error } = await supabase.from("workout_sessions").update({ status: "cancelled" }).eq("id", sessionIdRef.current);
+    const { error } = await supabase.from("workout_sessions").delete().eq("id", sessionIdRef.current);
     if (error) { toast.error("Failed to cancel workout"); return; }
     navigate({ to: "/" });
   };
@@ -551,18 +552,18 @@ function WorkoutPage() {
               </p>
             </div>
           </div>
-          <button onClick={() => setShowTimer(!showTimer)} className="rounded-full p-2 text-muted-foreground hover:text-primary">
+          <button onClick={() => setShowTimer(!showTimer)} className={`rounded-full p-2 hover:text-primary ${showTimer ? "text-primary" : "text-muted-foreground"}`}>
             <Timer className="h-5 w-5" />
           </button>
         </div>
+        {/* Inside the sticky header so the timer stays visible while scrolling */}
+        {showTimer && <RestTimer />}
       </div>
-
-      {showTimer && <RestTimer />}
 
       <div className="mx-auto max-w-lg px-4 pt-4 space-y-4">
         {blocks.map((block, bIdx) => (
           <Card key={block.session_exercise_id} className="bg-card border-border overflow-hidden">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 px-3 sm:px-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base font-heading">{block.exercise_name}</CardTitle>
@@ -574,29 +575,29 @@ function WorkoutPage() {
                 </button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-x-2 text-[10px] text-muted-foreground font-medium px-1 uppercase tracking-wider">
+            <CardContent className="space-y-2 px-3 sm:px-6">
+              <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-x-1 sm:gap-x-2 text-[10px] text-muted-foreground font-medium px-1 uppercase tracking-wider">
                 <span>Set</span><span className="text-center">Weight (kg)</span><span className="text-center">Reps</span><span>Done</span>
               </div>
               {block.sets.map((set, sIdx) => {
                 const setKey = `${block.session_exercise_id}-${set.set_number}`;
                 return (
-                <div key={sIdx} className={`grid grid-cols-[auto_1fr_1fr_auto] gap-x-2 items-center rounded-lg p-2 transition-all duration-300 ${set.completed ? "bg-primary/10" : "bg-secondary"} ${recentlyCompleted.has(setKey) ? "scale-[1.02] ring-1 ring-primary/40" : ""}`}>
-                  <span className="w-6 text-center text-xs font-bold text-muted-foreground">{set.set_number}</span>
+                <div key={sIdx} className={`grid grid-cols-[auto_1fr_1fr_auto] gap-x-1 sm:gap-x-2 items-center rounded-lg p-1.5 sm:p-2 transition-all duration-300 ${set.completed ? "bg-primary/10" : "bg-secondary"} ${recentlyCompleted.has(setKey) ? "scale-[1.02] ring-1 ring-primary/40" : ""}`}>
+                  <span className="w-5 sm:w-6 text-center text-xs font-bold text-muted-foreground">{set.set_number}</span>
                   <div className="flex flex-col items-center gap-1">
                     {set.prev_weight != null && <span className="text-[10px] text-muted-foreground">prev: {set.prev_weight}</span>}
                     <div className="flex items-center gap-1">
-                      <button onClick={() => updateSet(bIdx, sIdx, "weight", -1.25)} className="min-h-[44px] min-w-[44px] rounded bg-background text-xs font-bold flex items-center justify-center active:bg-accent">-1.25</button>
-                      <input type="number" value={set.weight !== null && set.weight !== undefined ? set.weight : ""} onChange={(e) => { const v = e.target.value; setFieldValue(bIdx, sIdx, "weight", v === "" ? 0 : parseFloat(v)); }} className="h-10 w-14 rounded bg-background text-center text-sm font-semibold border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0" />
-                      <button onClick={() => updateSet(bIdx, sIdx, "weight", 1.25)} className="min-h-[44px] min-w-[44px] rounded bg-background text-xs font-bold flex items-center justify-center active:bg-accent">+1.25</button>
+                      <button onClick={() => updateSet(bIdx, sIdx, "weight", -1.25)} className="min-h-[44px] min-w-[32px] sm:min-w-[44px] rounded bg-background text-[11px] sm:text-xs font-bold flex items-center justify-center active:bg-accent">-1.25</button>
+                      <NumberField decimals value={set.weight} onChange={(v) => setFieldValue(bIdx, sIdx, "weight", v)} className="h-10 w-11 sm:w-14 rounded bg-background text-center text-sm font-semibold border-none outline-none" />
+                      <button onClick={() => updateSet(bIdx, sIdx, "weight", 1.25)} className="min-h-[44px] min-w-[32px] sm:min-w-[44px] rounded bg-background text-[11px] sm:text-xs font-bold flex items-center justify-center active:bg-accent">+1.25</button>
                     </div>
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     {set.prev_reps != null && <span className="text-[10px] text-muted-foreground">prev: {set.prev_reps}</span>}
                     <div className="flex items-center gap-1">
-                      <button onClick={() => updateSet(bIdx, sIdx, "reps", -1)} className="min-h-[44px] min-w-[44px] rounded bg-background text-xs font-bold flex items-center justify-center active:bg-accent">-1</button>
-                      <input type="number" value={set.reps !== null && set.reps !== undefined ? set.reps : ""} onChange={(e) => { const v = e.target.value; setFieldValue(bIdx, sIdx, "reps", v === "" ? 0 : parseInt(v)); }} className="h-10 w-10 rounded bg-background text-center text-sm font-semibold border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0" />
-                      <button onClick={() => updateSet(bIdx, sIdx, "reps", 1)} className="min-h-[44px] min-w-[44px] rounded bg-background text-xs font-bold flex items-center justify-center active:bg-accent">+1</button>
+                      <button onClick={() => updateSet(bIdx, sIdx, "reps", -1)} className="min-h-[44px] min-w-[32px] sm:min-w-[44px] rounded bg-background text-[11px] sm:text-xs font-bold flex items-center justify-center active:bg-accent">-1</button>
+                      <NumberField decimals={false} value={set.reps} onChange={(v) => setFieldValue(bIdx, sIdx, "reps", v)} className="h-10 w-9 sm:w-10 rounded bg-background text-center text-sm font-semibold border-none outline-none" />
+                      <button onClick={() => updateSet(bIdx, sIdx, "reps", 1)} className="min-h-[44px] min-w-[32px] sm:min-w-[44px] rounded bg-background text-[11px] sm:text-xs font-bold flex items-center justify-center active:bg-accent">+1</button>
                     </div>
                   </div>
                   <button onClick={() => {
@@ -605,7 +606,7 @@ function WorkoutPage() {
                       setRecentlyCompleted((prev) => new Set(prev).add(setKey));
                       setTimeout(() => setRecentlyCompleted((prev) => { const n = new Set(prev); n.delete(setKey); return n; }), 400);
                     }
-                  }} className={`min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center transition-all duration-200 ${set.completed ? "gradient-accent text-primary-foreground scale-110" : "bg-background text-muted-foreground"}`}>
+                  }} className={`min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] rounded-full flex items-center justify-center transition-all duration-200 ${set.completed ? "gradient-accent text-primary-foreground scale-110" : "bg-background text-muted-foreground"}`}>
                     <Check className="h-4 w-4" />
                   </button>
                 </div>

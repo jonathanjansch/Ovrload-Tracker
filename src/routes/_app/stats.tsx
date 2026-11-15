@@ -224,7 +224,7 @@ function StatsPage() {
         </CardContent></Card>
         <Card className="bg-card border-border"><CardContent className="p-4 text-center">
           <TrendingUp className="h-5 w-5 mx-auto mb-1 text-primary" />
-          <p className="text-2xl font-heading font-bold">{totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(0)}k` : totalVolume}</p>
+          <p className="text-2xl font-heading font-bold">{totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : totalVolume}</p>
           <p className="text-[11px] text-muted-foreground">Total Volume (kg)</p>
         </CardContent></Card>
       </div>

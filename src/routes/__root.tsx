@@ -25,7 +25,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "GymTracker — Workout Tracking" },
+      { title: "Ovrload Tracker" },
       { name: "description", content: "Track your workouts, log progressive overload, and crush your fitness goals." },
       { name: "theme-color", content: "#0A0A0A" },
     ],

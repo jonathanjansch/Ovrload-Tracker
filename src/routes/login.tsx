@@ -58,7 +58,7 @@ function LoginPage() {
       <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="text-center">
           <CardTitle className="font-heading text-2xl font-bold gradient-accent-text">
-            GymTracker
+            Ovrload Tracker
           </CardTitle>
           <CardDescription>
             {isSignUp ? "Create your account" : "Sign in to continue"}

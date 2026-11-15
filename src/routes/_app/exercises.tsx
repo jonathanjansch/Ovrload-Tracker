@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Dumbbell, Lock } from "lucide-react";
+import { Plus, Search, Dumbbell, Lock, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/exercises")({
   component: ExercisesPage,
@@ -27,6 +27,7 @@ function ExercisesPage() {
   const [newName, setNewName] = useState("");
   const [newGroupId, setNewGroupId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchExercises = async () => {
     if (!user) return;
@@ -50,21 +51,62 @@ function ExercisesPage() {
     });
   }, [user]);
 
-  const createExercise = async () => {
-    if (!user || !newName.trim()) return;
-    setSaving(true);
-    const { error } = await supabase.from("exercises").insert({
-      user_id: user.id,
-      name: newName.trim(),
-      muscle_group_id: newGroupId || null,
-      is_system: false,
-    });
-    if (error) { toast.error("Failed to create exercise"); setSaving(false); return; }
-    toast.success("Exercise added!");
+  const openForCreate = () => {
+    setEditingId(null);
     setNewName("");
     setNewGroupId("");
+    setDialogOpen(true);
+  };
+
+  const openForEdit = (e: Tables<"exercises">) => {
+    if (e.is_system) return;
+    setEditingId(e.id);
+    setNewName(e.name);
+    setNewGroupId(e.muscle_group_id ?? "");
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
     setDialogOpen(false);
+    setEditingId(null);
+    setNewName("");
+    setNewGroupId("");
+  };
+
+  const saveExercise = async () => {
+    if (!user || !newName.trim()) return;
+    setSaving(true);
+    const fields = { name: newName.trim(), muscle_group_id: newGroupId || null };
+    const { error } = editingId
+      ? await supabase.from("exercises").update(fields).eq("id", editingId)
+      : await supabase.from("exercises").insert({ ...fields, user_id: user.id, is_system: false });
     setSaving(false);
+    if (error) { toast.error(editingId ? "Failed to update exercise" : "Failed to create exercise"); return; }
+    toast.success(editingId ? "Exercise updated!" : "Exercise added!");
+    closeDialog();
+    fetchExercises();
+  };
+
+  const deleteExercise = async () => {
+    if (!editingId) return;
+    if (!confirm("Delete this exercise? It will also be removed from any templates.")) return;
+    setSaving(true);
+    // Discarded workouts used to be kept as "cancelled"; they are never shown, so clear them
+    // so they don't block deleting an exercise
+    if (user) await supabase.from("workout_sessions").delete().eq("user_id", user.id).eq("status", "cancelled");
+    const { error } = await supabase.from("exercises").delete().eq("id", editingId);
+    setSaving(false);
+    if (error) {
+      // 23503 = still referenced by logged workouts; deleting would break your history
+      toast.error(
+        error.code === "23503"
+          ? "This exercise is in your workout history, so it can't be deleted. You can rename it instead."
+          : "Failed to delete exercise"
+      );
+      return;
+    }
+    toast.success("Exercise deleted");
+    closeDialog();
     fetchExercises();
   };
 
@@ -78,7 +120,7 @@ function ExercisesPage() {
     <div className="mx-auto max-w-lg px-4 pt-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-heading text-xl font-bold">Exercises</h1>
-        <Button onClick={() => setDialogOpen(true)} size="icon" className="gradient-accent text-primary-foreground h-10 w-10">
+        <Button onClick={openForCreate} size="icon" className="gradient-accent text-primary-foreground h-10 w-10">
           <Plus className="h-5 w-5" />
         </Button>
       </div>
@@ -118,7 +160,11 @@ function ExercisesPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map((e) => (
-            <Card key={e.id} className="bg-card border-border">
+            <Card
+              key={e.id}
+              onClick={() => openForEdit(e)}
+              className={`bg-card border-border ${e.is_system ? "" : "cursor-pointer transition-colors hover:border-primary/40 active:bg-secondary"}`}
+            >
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{e.name}</span>
@@ -133,11 +179,13 @@ function ExercisesPage() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-heading">New Exercise</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">Add a custom exercise to your library.</DialogDescription>
+            <DialogTitle className="font-heading">{editingId ? "Edit Exercise" : "New Exercise"}</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {editingId ? "Rename it, change the muscle group, or delete it." : "Add a custom exercise to your library."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -163,10 +211,15 @@ function ExercisesPage() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={createExercise} disabled={saving || !newName.trim()} className="gradient-accent text-primary-foreground w-full h-12">
-              {saving ? "Saving..." : "Add Exercise"}
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            <Button onClick={saveExercise} disabled={saving || !newName.trim()} className="gradient-accent text-primary-foreground w-full h-12">
+              {saving ? "Saving..." : editingId ? "Save Changes" : "Add Exercise"}
             </Button>
+            {editingId && (
+              <Button onClick={deleteExercise} disabled={saving} variant="ghost" className="w-full h-10 text-destructive hover:text-destructive gap-2">
+                <Trash2 className="h-4 w-4" /> Delete Exercise
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

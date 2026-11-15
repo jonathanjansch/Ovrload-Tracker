@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dumbbell, Plus, ArrowLeft, ArrowRight, Check, Trash2, Pencil, Save, User } from "lucide-react";
 import { ProfileSheet } from "@/components/ProfileSheet";
+import { NumberField } from "@/components/NumberField";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/")({
@@ -329,21 +330,17 @@ function HomePage() {
                       <span className="font-bold text-muted-foreground">{s.set_number}</span>
                       {editing ? (
                         <>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            value={s.weight ?? ""}
-                            onChange={(e) => updateEditSet(exIdx, setIdx, "weight", e.target.value)}
-                            className="w-full rounded-md border border-border bg-secondary px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
-                            placeholder="kg"
+                          <NumberField
+                            decimals
+                            value={s.weight ?? 0}
+                            onChange={(v) => updateEditSet(exIdx, setIdx, "weight", String(v))}
+                            className="w-full rounded-md border border-border bg-secondary px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
                           />
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={s.reps ?? ""}
-                            onChange={(e) => updateEditSet(exIdx, setIdx, "reps", e.target.value)}
-                            className="w-full rounded-md border border-border bg-secondary px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
-                            placeholder="reps"
+                          <NumberField
+                            decimals={false}
+                            value={s.reps ?? 0}
+                            onChange={(v) => updateEditSet(exIdx, setIdx, "reps", String(v))}
+                            className="w-full rounded-md border border-border bg-secondary px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
                           />
                         </>
                       ) : (
@@ -353,8 +350,8 @@ function HomePage() {
                         </>
                       )}
                       {editing ? (
-                        <button onClick={() => toggleEditSetCompleted(exIdx, setIdx)} className={`h-5 w-5 rounded border flex items-center justify-center transition-colors ${s.completed ? "bg-primary border-primary" : "border-border hover:border-primary/50"}`}>
-                          {s.completed && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                        <button onClick={() => toggleEditSetCompleted(exIdx, setIdx)} aria-label="Toggle set completed" className={`h-8 w-8 rounded-md border flex items-center justify-center transition-colors ${s.completed ? "bg-primary border-primary" : "border-border hover:border-primary/50"}`}>
+                          {s.completed && <Check className="h-4 w-4 text-primary-foreground" />}
                         </button>
                       ) : (
                         s.completed && <Check className="h-3.5 w-3.5 text-primary" />
