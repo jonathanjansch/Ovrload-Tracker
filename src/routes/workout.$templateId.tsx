@@ -60,6 +60,8 @@ function WorkoutPage() {
 
   // Track in-flight saves to prevent duplicates
   const savingKeys = useRef(new Set<string>());
+  const pendingKeys = useRef(new Set<string>());
+  const saveSetRef = useRef<((set: SetData) => Promise<void>) | null>(null);
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Upsert a single set to DB (safe against duplicates via unique constraint)
@@ -67,8 +69,11 @@ function WorkoutPage() {
     if (!set.session_exercise_id) return;
     const key = `${set.session_exercise_id}-${set.set_number}`;
 
-    // Skip if already saving this exact key
-    if (savingKeys.current.has(key)) return;
+    // If this set is already being saved, save again once that finishes so the latest value wins
+    if (savingKeys.current.has(key)) {
+      pendingKeys.current.add(key);
+      return;
+    }
     savingKeys.current.add(key);
 
     try {
@@ -97,8 +102,15 @@ function WorkoutPage() {
       toast.error("Failed to save set. Check your connection.");
     } finally {
       savingKeys.current.delete(key);
+      if (pendingKeys.current.delete(key)) {
+        const latest = blocksRef.current
+          .flatMap((b) => b.sets)
+          .find((s) => s.session_exercise_id === set.session_exercise_id && s.set_number === set.set_number);
+        if (latest) saveSetRef.current?.(latest);
+      }
     }
   }, []);
+  saveSetRef.current = saveSet;
 
   const debounceSave = useCallback((set: SetData) => {
     const key = `${set.session_exercise_id}-${set.set_number}`;
@@ -168,6 +180,35 @@ function WorkoutPage() {
     await createNewSession();
   };
 
+  // Sets from the last completed session of this template, used for "prev" values
+  const loadPrevSets = async (): Promise<{ exercise_id?: string; set_number: number; weight: number | null; reps: number | null }[]> => {
+    if (!user) return [];
+    const { data: lastSession } = await supabase
+      .from("workout_sessions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("template_id", templateId)
+      .eq("status", "completed")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!lastSession) return [];
+
+    const { data: prevSE } = await supabase
+      .from("workout_session_exercises")
+      .select("id, exercise_id")
+      .eq("session_id", lastSession.id);
+    if (!prevSE || prevSE.length === 0) return [];
+
+    const { data } = await supabase
+      .from("workout_sets")
+      .select("session_exercise_id, set_number, weight, reps")
+      .in("session_exercise_id", prevSE.map((se) => se.id));
+    if (!data) return [];
+    const seToEx = new Map(prevSE.map((se) => [se.id, se.exercise_id]));
+    return data.map((s) => ({ ...s, exercise_id: seToEx.get(s.session_exercise_id) }));
+  };
+
   const createNewSession = async () => {
     if (!user) return;
     setLoading(true);
@@ -216,34 +257,7 @@ function WorkoutPage() {
 
     if (seErr || !sessionExercises) { toast.error("Failed to initialize exercises"); setLoading(false); return; }
 
-    // Previous session for "prev" values
-    const { data: lastSession } = await supabase
-      .from("workout_sessions")
-      .select("id")
-      .eq("user_id", user!.id)
-      .eq("template_id", templateId)
-      .eq("status", "completed")
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let prevSets: any[] = [];
-    if (lastSession) {
-      const { data: prevSE } = await supabase
-        .from("workout_session_exercises")
-        .select("id, exercise_id")
-        .eq("session_id", lastSession.id);
-      if (prevSE && prevSE.length > 0) {
-        const { data } = await supabase
-          .from("workout_sets")
-          .select("*")
-          .in("session_exercise_id", prevSE.map((se) => se.id));
-        if (data) {
-          const seToEx = new Map(prevSE.map((se) => [se.id, se.exercise_id]));
-          prevSets = data.map((s) => ({ ...s, exercise_id: seToEx.get(s.session_exercise_id) }));
-        }
-      }
-    }
+    const prevSets = await loadPrevSets();
 
     const newBlocks: ExerciseBlock[] = sessionExercises.map((se: any) => {
       const te = templateExercises.find((t: any) => t.exercises.id === se.exercise_id);
@@ -286,13 +300,18 @@ function WorkoutPage() {
       .single();
     if (session) setTemplateName((session as any).workout_templates?.name ?? "Workout");
 
-    const { data: sessionExercises } = await supabase
+    const { data: sessionExercises, error: seLoadErr } = await supabase
       .from("workout_session_exercises")
-      .select("*, exercises(id, name, muscle_groups(name))")
+      // Two FKs point at exercises (exercise_id + original_exercise_id), so name the one we want
+      .select("*, exercises!workout_session_exercises_exercise_id_fkey(id, name, muscle_groups(name))")
       .eq("session_id", sId)
       .order("order_index");
 
-    if (!sessionExercises) { setLoading(false); return; }
+    if (seLoadErr || !sessionExercises) {
+      toast.error("Failed to load your workout. Please try again.");
+      setLoading(false);
+      return;
+    }
 
     const seIds = sessionExercises.map((se: any) => se.id);
     let existingSets: any[] = [];
@@ -301,18 +320,25 @@ function WorkoutPage() {
       if (data) existingSets = data;
     }
 
+    const prevSets = await loadPrevSets();
+
     const newBlocks: ExerciseBlock[] = sessionExercises.map((se: any) => {
       const ex = se.exercises;
       const seSets = existingSets.filter((s: any) => s.session_exercise_id === se.id);
+      const exercisePrevSets = prevSets.filter((s) => s.exercise_id === se.exercise_id);
       const sets: SetData[] = Array.from({ length: se.planned_sets }, (_, i) => {
         const existing = seSets.find((s: any) => s.set_number === i + 1);
+        const prev = exercisePrevSets.find((s) => s.set_number === i + 1);
         return {
           id: existing?.id,
           session_exercise_id: se.id,
           set_number: i + 1,
-          weight: existing?.weight ?? 0,
-          reps: existing?.reps ?? 0,
+          // Unsaved sets fall back to last session's values, same as a fresh start
+          weight: existing?.weight ?? prev?.weight ?? 0,
+          reps: existing?.reps ?? prev?.reps ?? 0,
           completed: existing?.completed ?? false,
+          prev_weight: prev?.weight != null ? prev.weight : undefined,
+          prev_reps: prev?.reps != null ? prev.reps : undefined,
         };
       });
       return {

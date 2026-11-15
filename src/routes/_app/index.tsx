@@ -65,10 +65,11 @@ function HomePage() {
   const [editData, setEditData] = useState<SessionDetail | null>(null);
   const [saving, setSaving] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [activeSession, setActiveSession] = useState<{ template_id: string | null; template_name: string | null } | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [sessionsRes, templatesRes] = await Promise.all([
+    const [sessionsRes, templatesRes, activeRes] = await Promise.all([
       supabase
         .from("workout_sessions")
         .select("*, workout_templates(name)")
@@ -81,7 +82,20 @@ function HomePage() {
         .select("*")
         .eq("user_id", user.id)
         .order("name"),
+      supabase
+        .from("workout_sessions")
+        .select("template_id, workout_templates(name)")
+        .eq("user_id", user.id)
+        .eq("status", "in_progress")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
+    setActiveSession(
+      activeRes.data
+        ? { template_id: activeRes.data.template_id, template_name: (activeRes.data as any).workout_templates?.name ?? null }
+        : null
+    );
     if (sessionsRes.data) {
       setRecentSessions(
         sessionsRes.data.map((s: any) => ({
@@ -373,6 +387,21 @@ function HomePage() {
           <User className="h-5 w-5" />
         </button>
       </div>
+
+      {activeSession?.template_id && (
+        <button
+          onClick={() => startWorkout(activeSession.template_id!)}
+          className="mb-3 flex w-full items-center justify-between rounded-lg border border-primary/50 bg-primary/10 p-4 text-left transition-colors hover:bg-primary/20"
+        >
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-primary">Workout in progress</p>
+            <p className="font-heading font-semibold">{activeSession.template_name ?? "Workout"}</p>
+          </div>
+          <span className="flex items-center gap-1 text-sm font-semibold text-primary">
+            Resume <ArrowRight className="h-4 w-4" />
+          </span>
+        </button>
+      )}
 
       <Button
         onClick={() => setShowPicker(true)}
